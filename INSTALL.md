@@ -97,8 +97,11 @@ crash or the menu won't react to clicks – that's what this fix is for.
    > developer tools* are required and offer to install them. Click
    > **Install**, wait until it's finished, and run the command again.
 
-5. If everything worked, you see:
+5. If everything worked, you see something like:
    ```
+   Game folder: /Applications/Star Trek Armada.app/Contents/SharedSupport/prefix/drive_c/GOG Games/Star Trek Armada
+     Wine prefix: 64-bit, Microsoft Windows XP 64 (5.2, build 3790), engine WS12WineSikarugir10.0_3
+     -> matches the tested setup
      Armada.exe: patched (backup: Armada.exe.orig)
      ddraw.dll: patched (backup: ddraw.dll.orig)
      armfix: installed (original STRLKUP.DLL kept as strlkup0.dll)
@@ -106,6 +109,8 @@ crash or the menu won't react to clicks – that's what this fix is for.
                WindowsFloatWhenInactive set
    Done. Start the game through Porting Kit.
    ```
+   If instead of “matches the tested setup” you see a *Note*, see
+   [Troubleshooting](#troubleshooting) – the fix is applied anyway.
 
 ---
 
@@ -119,7 +124,24 @@ Start **Star Trek Armada** from Porting Kit or your Applications folder.
 - In the main menu, **Single Player**, **Options** and all sub-menus should
   now react to your clicks.
 
-To change the resolution, use the game's **Options** menu.
+To change the resolution, use the game's **Options** menu
+(**Graphics Settings → Display Mode**). The list shows the 4:3 resolutions
+your Mac offers, in 32 bit; pick the highest one that looks good to you.
+
+---
+
+## Updating to a newer version of the fix
+
+Download the new version (Step 3) and run the tool again exactly like in
+Step 4. It recognizes files patched by an older version and updates them:
+```
+  Armada.exe: updated to the current version of the fix
+```
+
+To just see what is installed, without changing anything, add `--check`:
+```
+python3 tools/patch_armada.py --check /Applications/Star\ Trek\ Armada.app
+```
 
 ---
 
@@ -142,8 +164,16 @@ To change the resolution, use the game's **Options** menu.
 
 **The tool says “unknown version … Aborting, nothing changed.”**
 Your game files are not the GOG version *1.2 RDNA fix* (or they were
-modified). Re-download the current installer from GOG and install again
-(Step 1 and 2). Nothing was changed.
+modified). The line below it says what the tool found instead, e.g. the CD
+version or an older game version. Re-download the current installer from GOG
+and install again (Step 1 and 2). Nothing was changed.
+
+**The tool prints “Note: tested setup is …”**
+Your Porting Kit wrapper uses a 32-bit Wine prefix or a different Windows
+version than the one this fix was tested with (64-bit, Windows XP 64-bit).
+The fix is applied anyway and will most likely work. If the game misbehaves,
+set the Windows version to *Windows XP 64-bit* in the wrapper's
+configuration (winecfg).
 
 **“Game folder not found”**
 The game was installed into a different folder than

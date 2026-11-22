@@ -9,7 +9,13 @@ Nothing from GOG/Activision is shipped with this tool.
 
 Usage:
     python3 patch_armada.py "/Applications/Star Trek Armada.app"
+    python3 patch_armada.py --check "/Applications/Star Trek Armada.app"
     python3 patch_armada.py --restore "/Applications/Star Trek Armada.app"
+
+--check shows the game version, what is patched (original / older fix /
+current fix) and the Wine prefix (32/64-bit, Windows version) without
+changing anything. Running the tool again after downloading a newer version
+of the fix updates an installation patched by an older version.
 
 Quit the game (and all Wine processes of the wrapper) before running it.
 """
@@ -17,6 +23,7 @@ import argparse
 import hashlib
 import os
 import shutil
+import struct
 import sys
 import time
 
@@ -29,7 +36,9 @@ GAME_SUBDIR = os.path.join("drive_c", "GOG Games", "Star Trek Armada")
 # Armada.exe  (GOG "1.2 RDNA fix", md5 below)
 # --------------------------------------------------------------------------
 EXE_MD5_ORIG = "75e9b46b9765b17b11ae810b781d365a"
-EXE_MD5_PATCHED = "b2c8914261185b0c998a83781d0bfbe4"
+EXE_MD5_PATCHED = "eeb8ab4058ff3e76c1d872e9c6792376"
+# earlier versions of this fix; updated in place
+EXE_MD5_PREVIOUS = ["b2c8914261185b0c998a83781d0bfbe4"]
 
 # (file offset, patched bytes hex). The original file is identified by its
 # MD5 above, so no original game bytes need to be stored here.
@@ -87,7 +96,21 @@ EXE_DIALOG_TOPMOST = [
     (0x23c460, "08"),
 ]
 
-EXE_PATCHES = EXE_MODE_FALLBACK + EXE_MODE_WHITELIST + EXE_DIALOG_TOPMOST
+# 4) Display Mode list in Options -> Graphics Settings (filled at VA
+#    0x543165): with 2) a Mac offers dozens of modes, the game's drop-down
+#    list runs off the screen and can't scroll. Only list 32-bit modes with
+#    the classic 4:3 or 5:4 shape. The game's internal mode list stays
+#    complete (startup fallback unaffected); the menu matches entries by text.
+#    New check at VA 0x58ab97 (unused bytes left by patch 2), then the
+#    original bpp check at 0x586d30; the call at 0x543175 is redirected to it.
+EXE_MODE_MENU_FILTER = [
+    (0x18ab97, "8b4424048078082075198b108b40048d0c80c1e20239ca740f8d1452c1e004"
+               "39c2740532c0c2040089d9e96ac1ffff"),
+    (0x143176, "1d7a0400"),
+]
+
+EXE_PATCHES = (EXE_MODE_FALLBACK + EXE_MODE_WHITELIST + EXE_DIALOG_TOPMOST
+               + EXE_MODE_MENU_FILTER)
 
 # --------------------------------------------------------------------------
 # ddraw.dll  (GOG.com DirectX 1-7 wrapper shipped with Armada, md5 below)
@@ -136,14 +159,192 @@ def md5(path):
         return hashlib.md5(f.read()).hexdigest()
 
 
-def apply_patches(path, patches, md5_orig, md5_patched, name):
+# --------------------------------------------------------------------------
+# Version / patch level / Wine prefix checks
+# --------------------------------------------------------------------------
+TESTED = "64-bit prefix, Windows XP 64-bit, Wine 10 (Sikarugir WS12 engine)"
+
+
+def read_version(path):
+    """(file version, product name) from a PE file's version resource."""
+    data = open(path, "rb").read()
+    ver, product = None, None
+    i = data.find(struct.pack("<I", 0xFEEF04BD))          # VS_FIXEDFILEINFO
+    if i >= 0 and i + 16 <= len(data):
+        ms, ls = struct.unpack_from("<II", data, i + 8)
+        ver = f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
+
+        def string(name):
+            key = name.encode("utf-16le") + b"\0\0"
+            j = data.find(key, i)
+            if not 0 < j < i + 4096:
+                return None
+            j = (j + len(key) + 3) & ~3
+            e = j
+            while e + 1 < len(data) and data[e:e + 2] != b"\0\0":
+                e += 2
+            return data[j:e].decode("utf-16le", "replace").strip() or None
+
+        product = string("ProductName")
+        sver = string("FileVersion")      # e.g. "1, 2, 0, 0" or "1.1.0.3494"
+        if sver:
+            ver = sver.replace(", ", ".").replace(",", ".")
+    return ver, product
+
+
+def patch_level(path, md5_orig, md5_patched, md5_previous=()):
+    cur = md5(path)
+    if cur == md5_patched:
+        return "current", "patched with the current version of this fix"
+    if cur in md5_previous:
+        return "older", "patched with an older version of this fix (will be updated)"
+    if cur == md5_orig:
+        return "original", "original GOG file, not patched yet"
+    return "unknown", "unknown file"
+
+
+def explain_exe(path):
+    """Clear message for an Armada.exe this tool doesn't know."""
+    ver, product = read_version(path)
+    if not product or "armada" not in product.lower():
+        return f"this does not look like Star Trek: Armada (product: {product or '?'})"
+    if ver and ver.startswith("1.2."):
+        return (f"Armada {ver}, but not the GOG '1.2 RDNA fix' build (e.g. the CD "
+                f"version or a modified/patched exe). Only the GOG build is supported "
+                f"- reinstall it from GOG.")
+    return (f"Armada {ver or '?'} - only version 1.2 from GOG ('1.2 RDNA fix') is "
+            f"supported. Reinstall the game from GOG.")
+
+
+def reg_value(text, key, name):
+    """String value from a Wine .reg file (None if missing)."""
+    start = text.lower().find(("[" + key + "]").lower())
+    if start < 0:
+        return None
+    end = text.find("\n[", start + 1)
+    body = text[start:end if end >= 0 else len(text)]
+    prefix = f'"{name}"="'
+    for line in body.splitlines():
+        if line.lower().startswith(prefix.lower()):
+            return line[len(prefix):].rstrip().rstrip('"')
+    return None
+
+
+WINVER_NAMES = {
+    "winxp": "Windows XP (32-bit)", "winxp64": "Windows XP 64-bit",
+    "win2003": "Windows Server 2003", "vista": "Windows Vista",
+    "win7": "Windows 7", "win8": "Windows 8", "win81": "Windows 8.1",
+    "win10": "Windows 10", "win11": "Windows 11",
+    "win98": "Windows 98", "win2k": "Windows 2000",
+}
+
+
+def read_reg(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def check_prefix(prefix):
+    """Describe the Wine prefix and compare it with the tested setup."""
+    system = read_reg(os.path.join(prefix, "system.reg"))
+    user = read_reg(os.path.join(prefix, "user.reg"))
+    win = os.path.join(prefix, "drive_c", "windows")
+
+    if "#arch=win32" in system or "#arch=win32" in user:
+        bits = 32
+    elif "#arch=win64" in system or os.path.isdir(os.path.join(win, "syswow64")):
+        bits = 64
+    else:
+        bits = 32
+
+    # Wine's Windows version: per-app setting, global setting, else what the
+    # prefix reports in HKLM\...\CurrentVersion
+    winver = (reg_value(user, "Software\\\\Wine\\\\AppDefaults\\\\Armada.exe", "Version")
+              or reg_value(user, "Software\\\\Wine", "Version"))
+    if winver:
+        winname = WINVER_NAMES.get(winver.lower(), winver)
+        nt = {"winxp": "5.1", "winxp64": "5.2", "win2003": "5.2"}.get(winver.lower())
+    else:
+        cv = "Software\\\\Microsoft\\\\Windows NT\\\\CurrentVersion"
+        nt = reg_value(system, cv, "CurrentVersion")
+        product = reg_value(system, cv, "ProductName") or "?"
+        build = reg_value(system, cv, "CurrentBuildNumber") or "?"
+        winname = f"{product} ({nt or '?'}, build {build})"
+
+    engine = None
+    try:
+        import json
+        with open(os.path.join(prefix, "info.json")) as f:
+            engine = json.load(f).get("engine")
+    except (OSError, ValueError):
+        pass
+
+    print(f"  Wine prefix: {bits}-bit, {winname}"
+          + (f", engine {engine}" if engine else ""))
+    notes = []
+    if bits != 64:
+        notes.append("32-bit prefix: not tested. The patched files are 32-bit "
+                     "Windows files and should behave the same, but if the game "
+                     "misbehaves, use a wrapper with a 64-bit prefix.")
+    if nt == "5.1" and bits == 64:
+        notes.append("Windows XP (32-bit) in a 64-bit prefix is unusual; "
+                     "tested was Windows XP 64-bit.")
+    elif nt not in ("5.1", "5.2"):
+        notes.append("Windows version: not tested. If the game misbehaves, set "
+                     "it to Windows XP 64-bit (Wineskin/Sikarugir: Advanced -> "
+                     "Tools -> Config Utility (winecfg)).")
+    if notes:
+        print(f"  Note: tested setup is {TESTED}.")
+        for n in notes:
+            print("   - " + n)
+    else:
+        print("  -> matches the tested setup")
+
+
+def report(game, prefix):
+    """--check: show versions and patch levels, change nothing."""
+    exe = find_file(game, "armada.exe")
+    if exe:
+        ver, product = read_version(exe)
+        lvl, text = patch_level(exe, EXE_MD5_ORIG, EXE_MD5_PATCHED, EXE_MD5_PREVIOUS)
+        print(f"  Armada.exe: {product or '?'} {ver or '?'} - {text}")
+        if lvl == "unknown":
+            print("    " + explain_exe(exe))
+    else:
+        print("  Armada.exe: not found")
+    dd = find_file(game, "ddraw.dll")
+    if dd:
+        ver, product = read_version(dd)
+        lvl, text = patch_level(dd, DDRAW_MD5_ORIG, DDRAW_MD5_PATCHED)
+        print(f"  ddraw.dll: {product or '?'} {ver or '?'} - {text}")
+    else:
+        print("  ddraw.dll: not found (GOG's DirectX wrapper is missing)")
+    strl = find_file(game, "strlkup.dll")
+    if not os.path.exists(os.path.join(game, "strlkup0.dll")):
+        print("  armfix: not installed")
+    elif strl and os.path.exists(ARMFIX_DLL) and md5(strl) == md5(ARMFIX_DLL):
+        print("  armfix: installed, current version")
+    else:
+        print("  armfix: installed, older version (will be updated)")
+    user = read_reg(os.path.join(prefix, "user.reg"))
+    missing = [n for k, n, v in REG_VALUES if (reg_value(user, k, n) or "").lower() != v.lower()]
+    print("  registry: " + ("all values set" if not missing
+                            else "missing/different: " + ", ".join(missing)))
+
+
+def apply_patches(path, patches, md5_orig, md5_patched, name, md5_previous=()):
     cur = md5(path)
     if cur == md5_patched:
         print(f"  {name}: already patched")
         return
-    if cur != md5_orig:
-        sys.exit(f"  {name}: unknown version (md5 {cur}); expected the GOG "
-                 f"'1.2 RDNA fix' build ({md5_orig}). Aborting, nothing changed.")
+    if cur not in (md5_orig, *md5_previous):
+        detail = explain_exe(path) if name == "Armada.exe" else \
+            f"expected GOG's version ({md5_orig})"
+        sys.exit(f"  {name}: unknown version (md5 {cur}).\n    {detail}\n"
+                 f"  Aborting, nothing changed.")
     data = bytearray(open(path, "rb").read())
     for off, new in patches:
         new_b = bytes.fromhex(new)
@@ -151,11 +352,14 @@ def apply_patches(path, patches, md5_orig, md5_patched, name):
     if hashlib.md5(data).hexdigest() != md5_patched:
         sys.exit(f"  {name}: result hash mismatch; aborting, nothing written.")
     backup = path + ".orig"
-    if not os.path.exists(backup):
+    if cur == md5_orig and not os.path.exists(backup):
         shutil.copy2(path, backup)
     with open(path, "wb") as f:
         f.write(data)
-    print(f"  {name}: patched (backup: {os.path.basename(backup)})")
+    if cur == md5_orig:
+        print(f"  {name}: patched (backup: {os.path.basename(backup)})")
+    else:
+        print(f"  {name}: updated to the current version of the fix")
 
 
 def install_armfix(game):
@@ -259,14 +463,20 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("target", help="Porting Kit wrapper (.app) or Wine prefix")
     ap.add_argument("--restore", action="store_true", help="undo all changes")
+    ap.add_argument("--check", action="store_true",
+                    help="show versions, patch level and Wine setup; change nothing")
     args = ap.parse_args()
     prefix, game = locate(args.target)
     print(f"Game folder: {game}")
+    check_prefix(prefix)
+    if args.check:
+        report(game, prefix)
+        return
     if args.restore:
         restore(game, prefix)
         return
     apply_patches(find_file(game, "armada.exe"), EXE_PATCHES,
-                  EXE_MD5_ORIG, EXE_MD5_PATCHED, "Armada.exe")
+                  EXE_MD5_ORIG, EXE_MD5_PATCHED, "Armada.exe", EXE_MD5_PREVIOUS)
     apply_patches(find_file(game, "ddraw.dll"), DDRAW_PATCHES,
                   DDRAW_MD5_ORIG, DDRAW_MD5_PATCHED, "ddraw.dll")
     install_armfix(game)

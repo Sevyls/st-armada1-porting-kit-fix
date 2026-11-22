@@ -11,6 +11,15 @@
  * layered with a low alpha (armfix.txt, default 13/255 - below ~13 macOS
  * treats the window as click-through) and paint it once, so the Mac driver
  * considers it drawn/opaque and macOS delivers clicks to it.
+ *
+ * Also:
+ * - Cmd+Tab: hide deactivation in favour of another app from the game (it
+ *   crashed during loading / minimized to 1x1) and make its windows fully
+ *   transparent while another app is in front.
+ * - Overlapping menus: redraw the front menu when a covered menu paints
+ *   over it (GOG's wrapper composites all menus regardless of z-order).
+ *
+ * Details: docs/INVESTIGATION.md, sections 2-4.
  */
 #include <windows.h>
 #include <stdlib.h>
