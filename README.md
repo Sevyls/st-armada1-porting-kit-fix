@@ -21,7 +21,7 @@ built-in display (1352×878 pt) and on an external 3008×1692 pt display.
 | Menu renders, but clicks only produce the macOS alert sound | The GOG wrapper's input dialog is a window Wine/macOS treat as transparent and click-through |
 | Menu animations hidden behind the background (with Wine's builtin ddraw) | Not used anymore – the GOG wrapper renders the menu correctly |
 
-Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md).
+Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md) · tested settings: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ## What the fix consists of
 
@@ -49,7 +49,11 @@ files of your own installation and refuses to touch any other version.
 
 ## Installation
 
-Requirements: the GOG offline installer (version “1.2 RDNA fix”) installed
+**New to Terminal and Porting Kit? Follow the step-by-step guide:
+[INSTALL.md](INSTALL.md).** All tested wrapper, Wine and registry settings
+are listed in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
+Short version – requirements: the GOG offline installer (version “1.2 RDNA fix”) installed
 into a Porting Kit wrapper (custom port), and Python 3 (`python3`, comes with
 the Xcode command line tools).
 
