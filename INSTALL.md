@@ -97,8 +97,11 @@ crash or the menu won't react to clicks – that's what this fix is for.
    > developer tools* are required and offer to install them. Click
    > **Install**, wait until it's finished, and run the command again.
 
-5. If everything worked, you see:
+5. If everything worked, you see something like:
    ```
+   Game folder: /Applications/Star Trek Armada.app/Contents/SharedSupport/prefix/drive_c/GOG Games/Star Trek Armada
+     Wine prefix: 64-bit, Microsoft Windows XP 64 (5.2, build 3790), engine WS12WineSikarugir10.0_3
+     -> matches the tested setup
      Armada.exe: patched (backup: Armada.exe.orig)
      ddraw.dll: patched (backup: ddraw.dll.orig)
      armfix: installed (original STRLKUP.DLL kept as strlkup0.dll)
@@ -106,6 +109,8 @@ crash or the menu won't react to clicks – that's what this fix is for.
                WindowsFloatWhenInactive set
    Done. Start the game through Porting Kit.
    ```
+   If instead of “matches the tested setup” you see a *Note*, see
+   [Troubleshooting](#troubleshooting) – the fix is applied anyway.
 
 ---
 

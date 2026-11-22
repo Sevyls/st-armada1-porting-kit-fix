@@ -2,7 +2,8 @@
 
 Makes the **GOG version of Star Trek: Armada** (2000) playable on macOS with
 Wine (Porting Kit / Sikarugir / Wineskin wrappers): no crash at startup, a
-correctly rendered menu, and working mouse clicks in all menus and dialogs.
+correctly rendered menu, working mouse clicks in all menus and dialogs, a
+usable resolution list, and safe switching to other apps with Cmd+Tab.
 
 Tested on a MacBook Pro M4 Pro, macOS 27, Porting Kit with a Sikarugir
 wrapper running `wine-10.0 (Sikarugir)`, GOG offline installer
@@ -12,9 +13,10 @@ built-in display (1352×878 pt) and on an external 3008×1692 pt display.
 ## 👉 Installation: see **[INSTALL.md](INSTALL.md)**
 
 A step-by-step guide for players without technical background – from the GOG
-download and the Porting Kit custom port to applying the fix and
+download and the Porting Kit custom port to applying the fix, updating it and
 troubleshooting. All tested wrapper, Wine and registry settings are listed in
-[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md); what changed between versions
+is in [CHANGELOG.md](CHANGELOG.md).
 
 > **Deutsch:** Dieses Repo macht die GOG-Version von Star Trek Armada auf dem
 > Mac mit Wine spielbar. Die Schritt-für-Schritt-Anleitung steht in
@@ -44,6 +46,9 @@ the Mac in general – will stop working on macOS 28.
 |---|---|
 | Crash right at startup: `page fault on read access to 0x00000004` in `armada+0x18972f` | Armada only accepts five 4:3 display modes; a Mac display offers none of them → NULL mode pointer |
 | Menu renders, but clicks only produce the macOS alert sound | The GOG wrapper's input dialog is a window Wine/macOS treat as transparent and click-through |
+| Cmd+Tab during loading crashes the game; in the menus it leaves an unrestorable 1×1 window | The game, the GOG wrapper and Wine react to losing focus by minimizing and releasing graphics resources |
+| Buttons of the menu behind sometimes drawn over a sub-menu (e.g. *Options → Game Settings*) | The GOG wrapper composites all menu drawing into one picture, regardless of which window is in front |
+| *Display Mode* list runs off the screen; higher resolutions and 32-bit modes unreachable | With the startup fix, a Mac offers dozens of modes; the game's drop-down can't scroll |
 | Menu animations hidden behind the background (with Wine's builtin ddraw) | Not used anymore – the GOG wrapper renders the menu correctly |
 
 Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md) · tested settings: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
@@ -137,7 +142,6 @@ is re-read every few seconds, so changes apply while the game is running.
   and a running mission) – it is only made invisible. Pause first if needed.
 - To return to the game, use Cmd+Tab or its Dock icon; clicking where the
   (invisible) game window is does not bring it back.
-- When a new sub-menu opens, the click target appears up to 250 ms later.
 - Only the GOG “1.2 RDNA fix” build is supported (exact byte patches).
 - Tested with a 64-bit Wine prefix set to Windows XP 64-bit. 32-bit prefixes
   and other Windows versions should work the same way but are untested.

@@ -10,9 +10,14 @@ was left unchanged.
 | Setting | Value |
 |---|---|
 | Porting Kit wrapper | Wineskin **3.0.6_2** (Sikarugir) |
-| Wine engine | **wine sikarugir 10.0 (revision 3)** – `wine-10.0 (Sikarugir)` |
+| Wine engine | **wine sikarugir 10.0 (revision 3)** – `wine-10.0 (Sikarugir)`; `prefix/info.json`: `WS12WineSikarugir10.0_3` |
 | Prefix architecture | 64-bit prefix (`WINEARCH=win64`), game runs in WoW64 (32-bit) |
-| Windows version | Windows XP (x64, build 3790 SP2) – Porting Kit default |
+| Windows version | Windows XP 64-bit (“Microsoft Windows XP 64”, 5.2, build 3790 SP2) – Porting Kit default |
+
+`python3 tools/patch_armada.py --check <wrapper>` shows these values for your
+own wrapper (prefix architecture, Windows version incl. Wine's per-program
+setting, engine) and whether they match the tested setup. 32-bit prefixes and
+other Windows versions are untested; the tool warns but still applies the fix.
 | Graphics driver | Mac driver (`winemac.drv`); XQuartz/X11 not used |
 | Program | `/GOG Games/Star Trek Armada/Armada.exe`, no program flags |
 

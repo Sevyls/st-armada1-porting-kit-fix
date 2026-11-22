@@ -35,6 +35,12 @@ renderer problem.
 - A Mac display (built-in Retina or a modern external one) exposes none of
   these 4:3 modes through Wine's Mac driver → empty list → NULL → crash.
 
+Note: after the fix, *Options → Graphics Settings* listed 640×480, 800×600
+and 1024×768 among the modes (see section 5). Why the original whitelist
+found none of its modes at startup was not investigated further (possibly
+different bit depths, or a different mode list for the display the game
+started on).
+
 **Fix (Armada.exe)**
 
 - `0x58ab6f`: replace the whitelist with “width ≥ 640, height ≥ 480,
@@ -276,4 +282,10 @@ ok:     mov ecx, ebx       ; this
 
 ## Open issues
 
-- New sub-menus may take up to 250 ms to become clickable (armfix polls).
+- LAN multiplayer (TCP/IP) is untested under Wine/macOS; Internet
+  multiplayer can't work (WON servers offline since 2004).
+- No windowed mode (the game's `-window` switch mixes up window layers and
+  input under Wine on macOS).
+- 32-bit Wine prefixes and Windows versions other than XP 64-bit are untested.
+- armfix finds new menus by polling every 250 ms, so a new sub-menu could take
+  up to 250 ms to become clickable; in practice this was not noticeable.
