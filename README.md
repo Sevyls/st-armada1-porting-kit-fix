@@ -64,7 +64,8 @@ Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md) · tested settings: [doc
    so clicks reach them. It also makes **Cmd+Tab** safe: the game is never
    told that it lost focus (which crashed it during loading and left an
    unrestorable 1×1 window), and its windows turn fully transparent while
-   another app is in front.
+   another app is in front. Finally it stops buttons of a covered menu from
+   showing up on top of a sub-menu (e.g. *Options → Game Settings*).
 4. **Four Wine registry values** (HKCU):
    - `Software\Wine\DllOverrides` → `ddraw` = `native,builtin` (use GOG's wrapper),
    - `Software\Wine\Direct3D` → `VideoMemorySize` = `512`,

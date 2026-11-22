@@ -62,7 +62,8 @@ static void fix_dialog(HWND h)
     GdiFlush();
 }
 
-static BOOL CALLBACK enum_proc(HWND h, LPARAM lp)
+/* a visible menu dialog of the game's shell */
+static BOOL is_shell_dialog(HWND h)
 {
     DWORD pid;
     char cls[64];
@@ -70,22 +71,27 @@ static BOOL CALLBACK enum_proc(HWND h, LPARAM lp)
     LONG style;
 
     GetWindowThreadProcessId(h, &pid);
-    if (pid != GetCurrentProcessId()) return TRUE;
-    if (!IsWindowVisible(h)) return TRUE;
-    if (!GetClassNameA(h, cls, sizeof(cls)) || lstrcmpA(cls, "#32770")) return TRUE;
+    if (pid != GetCurrentProcessId()) return FALSE;
+    if (!IsWindowVisible(h)) return FALSE;
+    if (!GetClassNameA(h, cls, sizeof(cls)) || lstrcmpA(cls, "#32770")) return FALSE;
     style = GetWindowLongA(h, GWL_STYLE);
-    if (!(style & WS_POPUP) || (style & WS_CHILD)) return TRUE;
-    if ((style & WS_CAPTION) == WS_CAPTION) return TRUE;   /* real message/config dialogs */
+    if (!(style & WS_POPUP) || (style & WS_CHILD)) return FALSE;
+    if ((style & WS_CAPTION) == WS_CAPTION) return FALSE;  /* real message/config dialogs */
     /* the dialog must belong to the game: its owner chain (shell dialogs
        open nested sub-dialogs owned by other dialogs) must reach the
        "Armada" main window */
     owner = GetWindow(h, GW_OWNER);
     for (int depth = 0; owner && depth < 8; depth++)
     {
-        if (GetClassNameA(owner, cls, sizeof(cls)) && !lstrcmpA(cls, "Armada")) break;
+        if (GetClassNameA(owner, cls, sizeof(cls)) && !lstrcmpA(cls, "Armada")) return TRUE;
         owner = GetWindow(owner, GW_OWNER);
     }
-    if (!owner) return TRUE;
+    return FALSE;
+}
+
+static BOOL CALLBACK enum_proc(HWND h, LPARAM lp)
+{
+    if (!is_shell_dialog(h)) return TRUE;
     if (is_tracked(h)) return TRUE;
 
     fix_dialog(h);
@@ -175,7 +181,16 @@ static void fade_in(void)
 }
 
 /* Returns TRUE if the message must be hidden from the procs behind us. */
-static BOOL swallow(UINT msg, WPARAM wp)
+/* TRUE if h is one of our own windows (e.g. a menu dialog) */
+static BOOL own_window(HWND h)
+{
+    DWORD pid = 0;
+    if (!h) return FALSE;
+    GetWindowThreadProcessId(h, &pid);
+    return pid == GetCurrentProcessId();
+}
+
+static BOOL swallow(UINT msg, WPARAM wp, LPARAM lp)
 {
     switch (msg)
     {
@@ -184,7 +199,9 @@ static BOOL swallow(UINT msg, WPARAM wp)
         if (g_hid_deactivate) { g_hid_deactivate = FALSE; fade_in(); return TRUE; }
         break;
     case WM_ACTIVATE:
-        if (LOWORD(wp) == WA_INACTIVE) return TRUE;
+        /* hide only deactivation in favour of another app; switching between
+           the game window and its own menu dialogs must reach the game */
+        if (LOWORD(wp) == WA_INACTIVE && !own_window((HWND)lp)) return TRUE;
         break;
     }
     return FALSE;
@@ -198,7 +215,7 @@ static WNDPROC g_prev[NSLOTS];
 #define SLOT(n) \
 static LRESULT CALLBACK keep_active_proc##n(HWND h, UINT m, WPARAM w, LPARAM l) \
 { \
-    if (swallow(m, w)) return 0; \
+    if (swallow(m, w, l)) return 0; \
     return CallWindowProcA(g_prev[n], h, m, w, l); \
 }
 SLOT(0) SLOT(1) SLOT(2) SLOT(3) SLOT(4) SLOT(5) SLOT(6) SLOT(7)
@@ -228,6 +245,82 @@ static void keep_game_active(void)
     g_used++;
 }
 
+/*
+ * Overlapping menus: GOG's wrapper copies everything the game draws into one
+ * picture, without regard to which window is in front. When a menu opens a
+ * sub-menu, the menu below stays open (disabled) behind it. If it repaints
+ * itself after the sub-menu was drawn (e.g. its pressed button), its buttons
+ * end up drawn over the sub-menu - on real Windows they would be hidden.
+ *
+ * A message hook on the game's thread watches WM_PAINT. When a covered
+ * (disabled) menu or one of its buttons paints after the front menu has
+ * painted, the front menu is redrawn once, shortly afterwards. Normal menu
+ * switches cause no extra redraw (redrawing makes the menu flicker).
+ */
+static HINSTANCE g_inst;
+static HHOOK g_hook;
+static DWORD g_hook_tid;
+static volatile HWND g_front_painted;  /* front menu that has painted */
+static volatile HWND g_dirty_front;    /* front menu to redraw */
+static volatile DWORD g_dirty_time;
+
+static HWND g_find_front;
+static BOOL CALLBACK find_front_proc(HWND h, LPARAM lp)
+{
+    if (IsWindowEnabled(h) && is_shell_dialog(h)) { g_find_front = h; return FALSE; }
+    return TRUE;
+}
+
+/* the enabled (front) shell menu of this thread, if any */
+static HWND front_menu(void)
+{
+    g_find_front = NULL;
+    EnumThreadWindows(GetCurrentThreadId(), find_front_proc, 0);
+    return g_find_front;
+}
+
+static LRESULT CALLBACK getmsg_proc(int code, WPARAM wp, LPARAM lp)
+{
+    MSG *m = (MSG *)lp;
+    if (code == HC_ACTION && wp == PM_REMOVE && m->message == WM_PAINT && m->hwnd)
+    {
+        HWND root = GetAncestor(m->hwnd, GA_ROOT);
+        if (root && is_shell_dialog(root))
+        {
+            HWND front = front_menu();
+            if (root == front)
+                g_front_painted = front;
+            else if (front && front == g_front_painted && !IsWindowEnabled(root))
+            {
+                g_dirty_front = front;      /* covered menu painted over it */
+                g_dirty_time = GetTickCount();
+            }
+        }
+    }
+    return CallNextHookEx(g_hook, code, wp, lp);
+}
+
+static void install_paint_hook(void)
+{
+    DWORD tid;
+    if (!g_game) return;
+    tid = GetWindowThreadProcessId(g_game, NULL);
+    if (!tid || tid == g_hook_tid) return;
+    if (g_hook) UnhookWindowsHookEx(g_hook);
+    g_hook = SetWindowsHookExA(WH_GETMESSAGE, getmsg_proc, g_inst, tid);
+    g_hook_tid = g_hook ? tid : 0;
+}
+
+/* redraw the front menu once the covered menu has finished painting */
+static void repaint_front(void)
+{
+    HWND h = g_dirty_front;
+    if (!h || GetTickCount() - g_dirty_time < 100) return;
+    g_dirty_front = NULL;
+    if (IsWindow(h) && IsWindowVisible(h))
+        RedrawWindow(h, NULL, NULL, RDW_INVALIDATE | RDW_NOERASE);
+}
+
 static DWORD WINAPI worker(LPVOID p)
 {
     unsigned tick = 0;
@@ -241,8 +334,10 @@ static DWORD WINAPI worker(LPVOID p)
             if (old != g_alpha) apply_alpha_all();
         }
         keep_game_active();
+        install_paint_hook();
         untrack_invisible();
         EnumWindows(enum_proc, 0);
+        repaint_front();
         Sleep(250);
     }
     return 0;
@@ -252,6 +347,7 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
 {
     if (reason == DLL_PROCESS_ATTACH)
     {
+        g_inst = inst;
         DisableThreadLibraryCalls(inst);
         CloseHandle(CreateThread(NULL, 0, worker, NULL, 0, NULL));
     }
