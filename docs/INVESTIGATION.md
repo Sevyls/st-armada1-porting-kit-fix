@@ -67,8 +67,11 @@ menu renders perfectly, but every click beeps.
 The main menu and all sub-menus are **dialog boxes** (`DialogBoxParamA`, dialog
 templates in the `RT_DIALOG` resources, popup style `0x82000440`) owned by the game window
 (class `Armada`). The game window is disabled while a modal dialog is open
-(standard Windows behaviour). The menu graphics are drawn with Direct3D into
-the game window; the dialog only receives input.
+(standard Windows behaviour). The dialogs paint their background and
+buttons with ordinary GDI calls (`WM_PAINT`/`BeginPaint`, `BitBlt`); GOG's
+wrapper intercepts that drawing and composites it into the Direct3D picture
+of the game window. The dialog windows themselves only receive input
+(see also section 4).
 
 GOG's wrapper scales the 640×480 shell to the screen. To hide the real
 dialog controls (it composites them itself), it hooks `MoveWindow`,
@@ -173,6 +176,40 @@ and the game window itself kept covering the screen). So on deactivation
 armfix makes the game window and the menu dialogs fully transparent (alpha 0:
 invisible and click-through for macOS) and restores them on re-activation.
 Nothing is minimized or hidden from the game's point of view.
+
+Only deactivation in favour of *another app* is hidden: `WM_ACTIVATE`
+(`WA_INACTIVE`) caused by one of the game's own menu dialogs becoming active
+is passed through, so the game sees the normal focus changes between its
+menus.
+
+---
+
+## 4. Buttons of a covered menu drawn over a sub-menu
+
+Sometimes, after opening a sub-menu (e.g. *Options → Game Settings*), the
+buttons of the menu behind it – including the still highlighted *Game
+Settings* button – were drawn on top of the sub-menu, while the sub-menu's
+labels were missing. Only *Previous Menu* cleared it.
+
+A sub-menu is a nested modal dialog; the menu that opened it stays open
+(disabled) behind it. GOG's wrapper composites all GDI drawing of the menu
+dialogs into one picture, **without regard to which window is in front**. If
+the covered menu repaints something after the sub-menu has been drawn (for
+example its pressed button returning to normal), it ends up on top. On real
+Windows that repaint would be clipped by the sub-menu in front. Whether it
+happens depends on the order in which the windows get their `WM_PAINT`,
+which is why it occurred only sometimes.
+
+**Fix (armfix):** a `WH_GETMESSAGE` hook on the game's thread watches
+`WM_PAINT` of the menu dialogs and their buttons. When a covered (disabled)
+menu paints *after* the front (enabled) menu has painted, armfix redraws the
+front menu once (`RedrawWindow(RDW_INVALIDATE | RDW_NOERASE)`), about
+0.1–0.35 s later.
+
+A first version simply redrew every new front menu a few times. That fixed
+the overlap but made the menus flicker: a screen recording showed the panel
+going empty and the buttons reappearing one by one on every redraw. Redrawing
+only when the overlap actually happened avoids that.
 
 ---
 
