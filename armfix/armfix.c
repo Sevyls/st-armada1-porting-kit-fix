@@ -125,14 +125,122 @@ static void apply_alpha_all(void)
     }
 }
 
+
+/* ---- keep the game "active" when the user switches away (Cmd+Tab) -------
+ * On deactivation the game and Wine's wined3d minimize the fullscreen window
+ * and release/restore Direct3D resources. Under Wine on macOS the window
+ * can't be restored afterwards, and doing it during a loading screen crashes
+ * the game. We subclass the game window and hide the deactivation (and the
+ * matching re-activation) from everything behind us. */
+static BOOL g_hid_deactivate;
+
+/* While the game is in the background its fullscreen windows would still
+   cover the screen (and catch clicks). Make them fully transparent - macOS
+   then shows the other apps and passes clicks through - and restore them
+   when the game becomes active again. Nothing is minimized or hidden for
+   Windows, so the game and Direct3D don't notice anything. */
+#define MAX_FADED 16
+static HWND g_faded[MAX_FADED];
+static BYTE g_faded_alpha[MAX_FADED];
+static int g_nfaded;
+
+static BOOL CALLBACK fade_out_proc(HWND h, LPARAM lp)
+{
+    char cls[64];
+    LONG ex;
+    if (g_nfaded >= MAX_FADED || !IsWindowVisible(h)) return TRUE;
+    if (!GetClassNameA(h, cls, sizeof(cls))) return TRUE;
+    if (lstrcmpA(cls, "Armada") && !is_tracked(h)) return TRUE;
+    ex = GetWindowLongA(h, GWL_EXSTYLE);
+    if (!(ex & WS_EX_LAYERED)) SetWindowLongA(h, GWL_EXSTYLE, ex | WS_EX_LAYERED);
+    SetLayeredWindowAttributes(h, 0, 0, LWA_ALPHA);
+    g_faded[g_nfaded] = h;
+    g_faded_alpha[g_nfaded] = lstrcmpA(cls, "Armada") ? g_alpha : 255;
+    g_nfaded++;
+    return TRUE;
+}
+
+static void fade_out(void)
+{
+    g_nfaded = 0;
+    EnumThreadWindows(GetCurrentThreadId(), fade_out_proc, 0);
+}
+
+static void fade_in(void)
+{
+    for (int i = 0; i < g_nfaded; i++)
+        if (IsWindow(g_faded[i]))
+            SetLayeredWindowAttributes(g_faded[i], 0, g_faded_alpha[i], LWA_ALPHA);
+    g_nfaded = 0;
+}
+
+/* Returns TRUE if the message must be hidden from the procs behind us. */
+static BOOL swallow(UINT msg, WPARAM wp)
+{
+    switch (msg)
+    {
+    case WM_ACTIVATEAPP:
+        if (!wp) { g_hid_deactivate = TRUE; fade_out(); return TRUE; }
+        if (g_hid_deactivate) { g_hid_deactivate = FALSE; fade_in(); return TRUE; }
+        break;
+    case WM_ACTIVATE:
+        if (LOWORD(wp) == WA_INACTIVE) return TRUE;
+        break;
+    }
+    return FALSE;
+}
+
+/* Several wrapper slots, each with its own "previous" window procedure, so we
+   can put ourselves on top again if wined3d or the GOG wrapper subclass the
+   window after us, without ever creating a loop in the chain. */
+#define NSLOTS 8
+static WNDPROC g_prev[NSLOTS];
+#define SLOT(n) \
+static LRESULT CALLBACK keep_active_proc##n(HWND h, UINT m, WPARAM w, LPARAM l) \
+{ \
+    if (swallow(m, w)) return 0; \
+    return CallWindowProcA(g_prev[n], h, m, w, l); \
+}
+SLOT(0) SLOT(1) SLOT(2) SLOT(3) SLOT(4) SLOT(5) SLOT(6) SLOT(7)
+static WNDPROC g_slots[NSLOTS] = {
+    keep_active_proc0, keep_active_proc1, keep_active_proc2, keep_active_proc3,
+    keep_active_proc4, keep_active_proc5, keep_active_proc6, keep_active_proc7 };
+static int g_used;
+static HWND g_game;
+
+static void keep_game_active(void)
+{
+    HWND h = FindWindowA("Armada", NULL);
+    DWORD pid;
+    WNDPROC cur;
+    int i;
+
+    if (!h) return;
+    GetWindowThreadProcessId(h, &pid);
+    if (pid != GetCurrentProcessId()) return;
+    if (h != g_game) { g_game = h; g_used = 0; }   /* new game window */
+    cur = (WNDPROC)GetWindowLongA(h, GWL_WNDPROC);
+    for (i = 0; i < g_used; i++)
+        if (cur == g_slots[i]) return;             /* we are on top */
+    if (g_used >= NSLOTS) return;
+    g_prev[g_used] = cur;
+    SetWindowLongA(h, GWL_WNDPROC, (LONG)g_slots[g_used]);
+    g_used++;
+}
+
 static DWORD WINAPI worker(LPVOID p)
 {
+    unsigned tick = 0;
     read_config();
     for (;;)
     {
-        BYTE old = g_alpha;
-        read_config();
-        if (old != g_alpha) apply_alpha_all();
+        if (++tick % 20 == 0)   /* re-read armfix.txt every ~5 s only */
+        {
+            BYTE old = g_alpha;
+            read_config();
+            if (old != g_alpha) apply_alpha_all();
+        }
+        keep_game_active();
         untrack_invisible();
         EnumWindows(enum_proc, 0);
         Sleep(250);

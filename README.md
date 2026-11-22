@@ -61,11 +61,15 @@ Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md) · tested settings: [doc
 3. **`armfix`** – a tiny helper DLL (source in [`armfix/`](armfix)) loaded
    through a proxy of the game's own `STRLKUP.DLL`. It makes Armada's
    invisible menu dialogs “real” windows for macOS (painted once, 5 % opacity)
-   so clicks reach them.
-4. **Three Wine registry values** (HKCU):
+   so clicks reach them. It also makes **Cmd+Tab** safe: the game is never
+   told that it lost focus (which crashed it during loading and left an
+   unrestorable 1×1 window), and its windows turn fully transparent while
+   another app is in front.
+4. **Four Wine registry values** (HKCU):
    - `Software\Wine\DllOverrides` → `ddraw` = `native,builtin` (use GOG's wrapper),
    - `Software\Wine\Direct3D` → `VideoMemorySize` = `512`,
-   - `Software\Wine\Mac Driver` → `UseConfinementCursorClipping` = `n`.
+   - `Software\Wine\Mac Driver` → `UseConfinementCursorClipping` = `n`,
+   - `Software\Wine\Mac Driver` → `WindowsFloatWhenInactive` = `none`.
 
 No files or code from GOG or Activision are distributed here: the patch
 tables contain only file offsets and the new bytes (written for this fix);
@@ -102,12 +106,15 @@ changing anything if they are not the expected GOG versions.
 
 `armfix.txt` in the game folder holds the opacity (0–255) of the invisible
 menu dialogs. Default `13`. Values below about 13 make macOS treat the window
-as click-through again; higher values darken the picture slightly.
+as click-through again; higher values darken the picture slightly. The file
+is re-read every few seconds, so changes apply while the game is running.
 
 ## Known limitations
 
-- Switching away with Cmd+Tab minimizes the game (to a 1×1 window) and it
-  can't be restored; quit and restart instead.
+- While another app is in front, the game keeps running (including sound
+  and a running mission) – it is only made invisible. Pause first if needed.
+- To return to the game, use Cmd+Tab or its Dock icon; clicking where the
+  (invisible) game window is does not bring it back.
 - When a new sub-menu opens, the click target appears up to 250 ms later.
 - Only the GOG “1.2 RDNA fix” build is supported (exact byte patches).
 - Multiplayer was not tested.

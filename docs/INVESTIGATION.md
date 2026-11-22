@@ -138,6 +138,44 @@ makes them layered with alpha 13/255 and paints them black once.
 
 ---
 
+## 3. Cmd+Tab: crash during loading, unrestorable 1×1 window
+
+Switching away with Cmd+Tab minimized the game to a 1×1 window that could not
+be restored. Doing it during a loading screen crashed the game:
+
+```
+Unhandled exception: page fault on read access to 0x7265776f in wow64 32-bit code (0x7265776f).
+  1 0x00590408 in armada (+0x190408)
+```
+
+`0x590401` is `call [edx + ecx*4 + 0x80]` – an indirect call through a
+render function table, indexed by a value taken from a render object. The
+target `0x7265776f` is the ASCII text `"ower"` (part of a resource name), so
+the object had already been freed or overwritten.
+
+On deactivation the game receives `WM_ACTIVATEAPP(FALSE)`; Wine's wined3d
+minimizes the fullscreen device window (as Windows does) and the game / GOG
+wrapper release and later rebuild their Direct3D resources. Rebuilding while
+a level is still loading corrupts the game's state; and under Wine on macOS
+the minimized window can't be restored properly.
+
+**Fix (armfix):** subclass the `Armada` window and hide `WM_ACTIVATEAPP(FALSE)`,
+the matching `WM_ACTIVATEAPP(TRUE)` and `WM_ACTIVATE(WA_INACTIVE)` from
+everything behind it (game, GOG wrapper, wined3d). armfix must be the
+outermost window procedure, so it re-installs itself on top if another
+component subclasses the window later; each installation uses its own slot
+with its own “previous procedure”, so the chain can never loop.
+
+The game then never notices the switch – but its fullscreen windows stayed in
+front of all other apps (the patched “always on top” menu dialogs float even
+while the game is inactive, which `WindowsFloatWhenInactive=none` turns off,
+and the game window itself kept covering the screen). So on deactivation
+armfix makes the game window and the menu dialogs fully transparent (alpha 0:
+invisible and click-through for macOS) and restores them on re-activation.
+Nothing is minimized or hidden from the game's point of view.
+
+---
+
 ## Diagnostic helpers used
 
 - Porting Kit wrapper: `Info.plist` → `Debug Mode` = true,
@@ -157,5 +195,4 @@ makes them layered with alpha 13/255 and paints them black once.
 
 ## Open issues
 
-- Cmd+Tab minimizes the game to an unrestorable 1×1 window (the game handles
-  `WM_ACTIVATEAPP` by minimizing; restoring under Wine/macOS fails).
+- New sub-menus may take up to 250 ms to become clickable (armfix polls).

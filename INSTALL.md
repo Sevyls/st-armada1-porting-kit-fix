@@ -102,7 +102,8 @@ crash or the menu won't react to clicks – that's what this fix is for.
      Armada.exe: patched (backup: Armada.exe.orig)
      ddraw.dll: patched (backup: ddraw.dll.orig)
      armfix: installed (original STRLKUP.DLL kept as strlkup0.dll)
-     registry: ddraw override, VideoMemorySize, UseConfinementCursorClipping set
+     registry: ddraw override, VideoMemorySize, UseConfinementCursorClipping,
+               WindowsFloatWhenInactive set
    Done. Start the game through Porting Kit.
    ```
 
@@ -124,9 +125,10 @@ To change the resolution, use the game's **Options** menu.
 
 ## Good to know
 
-- **Don't switch away with ⌘ Cmd + Tab while playing.** The game minimizes
-  itself and can't be brought back; you would have to force quit it
-  (<kbd>⌘ Cmd</kbd> + <kbd>⌥ Option</kbd> + <kbd>Esc</kbd>) and restart.
+- **Switching to other apps with ⌘ Cmd + Tab works.** The game becomes
+  invisible and keeps running in the background (including sound – pause a
+  running mission first). To come back, press <kbd>⌘ Cmd</kbd> + <kbd>Tab</kbd>
+  again or click the *Star Trek Armada* icon in the Dock.
 - When a new menu opens, it may take a fraction of a second until clicks work.
 - The menus may look a tiny bit darker than usual – that's part of the fix.
 

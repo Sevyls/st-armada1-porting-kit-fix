@@ -41,6 +41,7 @@ wrapper (in our case this aborted). Armada does not need it.
 | `Software\Wine\DllOverrides` | `ddraw` | `native,builtin` | **(fix)** load GOG's DirectX wrapper `ddraw.dll` from the game folder instead of Wine's builtin ddraw. Required: only the GOG wrapper renders the menus correctly. |
 | `Software\Wine\Direct3D` | `VideoMemorySize` | `512` | **(fix)** report 512 MB video memory instead of the large unified memory of Apple Silicon (a common cause of trouble in old Direct3D games; harmless). |
 | `Software\Wine\Mac Driver` | `UseConfinementCursorClipping` | `n` | **(fix)** Wine otherwise implements cursor clipping by tying the mouse to one Cocoa window, which can pin clicks to the game window. |
+| `Software\Wine\Mac Driver` | `WindowsFloatWhenInactive` | `none` | **(fix)** by default Wine keeps “always on top” windows (Armada's patched menu dialogs) floating above other apps even when the game is in the background. |
 
 ### Left at Porting Kit / Wine defaults
 
@@ -71,7 +72,7 @@ Builtin*). Quit the game before editing; Wine rewrites `user.reg` on exit.
 | `ddraw.dll` | **(fix)** GOG DirectX 1-7 wrapper, patched (control offset 21000 → 6000), original in `ddraw.dll.orig` |
 | `STRLKUP.DLL` | **(fix)** armfix proxy DLL from this repository |
 | `strlkup0.dll` | the game's original `STRLKUP.DLL`, renamed |
-| `armfix.txt` | **(fix)** opacity of the menu dialogs for armfix, `13` (range 0–255) |
+| `armfix.txt` | **(fix)** opacity of the menu dialogs for armfix, `13` (range 0–255), re-read every ~5 s |
 | `dxcfg.ini` | GOG wrapper settings – **unchanged defaults** (see below) |
 | `ARMADA.PRF` | the game's own settings (resolution etc.), written by the game |
 

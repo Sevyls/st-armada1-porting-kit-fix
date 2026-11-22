@@ -126,6 +126,8 @@ REG_VALUES = [
     ("Software\\\\Wine\\\\Direct3D", "VideoMemorySize", "512"),
     # don't tie cursor clipping to one Cocoa window (it pins clicks to it)
     ("Software\\\\Wine\\\\Mac Driver", "UseConfinementCursorClipping", "n"),
+    # "always on top" menu dialogs must not float above other apps after Cmd+Tab
+    ("Software\\\\Wine\\\\Mac Driver", "WindowsFloatWhenInactive", "none"),
 ]
 
 
@@ -215,7 +217,8 @@ def set_reg_values(user_reg):
         text = text[:body_start] + nl.join(lines) + text[end:]
     with open(user_reg, "w", encoding="utf-8", errors="surrogateescape", newline="") as f:
         f.write(text)
-    print("  registry: ddraw override, VideoMemorySize, UseConfinementCursorClipping set")
+    print("  registry: ddraw override, VideoMemorySize, UseConfinementCursorClipping,\n"
+          "            WindowsFloatWhenInactive set")
 
 
 def restore(game, prefix):
