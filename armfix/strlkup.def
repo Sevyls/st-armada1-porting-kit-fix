@@ -1,0 +1,7 @@
+LIBRARY Strlkup.dll
+EXPORTS
+StrLookupCreate = strlkup0.StrLookupCreate @1
+StrLookupDestroy = strlkup0.StrLookupDestroy @2
+StrLookupFind = strlkup0.StrLookupFind @3
+StrLookupFormat = strlkup0.StrLookupFormat @4
+StrLookup_Global_Object = strlkup0.StrLookup_Global_Object @5
