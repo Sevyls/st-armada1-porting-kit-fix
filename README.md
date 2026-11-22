@@ -9,9 +9,34 @@ wrapper running `wine-10.0 (Sikarugir)`, GOG offline installer
 `patch_star_trek_armada_1.2_(50358)_to_1.2_RDNA_fix_(52907)`, both on the
 built-in display (1352×878 pt) and on an external 3008×1692 pt display.
 
+## 👉 Installation: see **[INSTALL.md](INSTALL.md)**
+
+A step-by-step guide for players without technical background – from the GOG
+download and the Porting Kit custom port to applying the fix and
+troubleshooting. All tested wrapper, Wine and registry settings are listed in
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+
 > **Deutsch:** Dieses Repo macht die GOG-Version von Star Trek Armada auf dem
-> Mac mit Wine spielbar. Installation siehe unten; die technische
-> Ursachenanalyse steht in [docs/INVESTIGATION.md](docs/INVESTIGATION.md).
+> Mac mit Wine spielbar. Die Schritt-für-Schritt-Anleitung steht in
+> [INSTALL.md](INSTALL.md) (Englisch), die technische Ursachenanalyse in
+> [docs/INVESTIGATION.md](docs/INVESTIGATION.md).
+
+## macOS compatibility
+
+| macOS | Status |
+|---|---|
+| **macOS 27** (Apple Silicon) | ✅ tested (macOS 27.2) |
+| macOS 26 and earlier (Apple Silicon) | should work, not tested |
+| Intel Macs | not tested |
+| **macOS 28 and later** | ❌ expected **not** to work |
+
+Wine on Apple Silicon (and with it Porting Kit) runs x86 code through
+Apple's **Rosetta 2**, which must be installed (macOS offers it automatically
+the first time). Apple keeps full Rosetta 2 only through macOS 27; from
+macOS 28 on only a limited subset for certain older, unmaintained games
+remains ([announcement](https://www.macrumors.com/2025/06/10/apple-to-phase-out-rosetta-2/)).
+Unless that subset still covers Wine, this fix – like Wine-based gaming on
+the Mac in general – will stop working on macOS 28.
 
 ## Symptoms this fixes
 
@@ -47,13 +72,11 @@ tables contain only file offsets and the new bytes (written for this fix);
 the original files are identified by their MD5 checksum. The tool patches the
 files of your own installation and refuses to touch any other version.
 
-## Installation
+## Installation (short version for experienced users)
 
-**New to Terminal and Porting Kit? Follow the step-by-step guide:
-[INSTALL.md](INSTALL.md).** All tested wrapper, Wine and registry settings
-are listed in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
+Step-by-step guide: [INSTALL.md](INSTALL.md).
 
-Short version – requirements: the GOG offline installer (version “1.2 RDNA fix”) installed
+Requirements: the GOG offline installer (version “1.2 RDNA fix”) installed
 into a Porting Kit wrapper (custom port), and Python 3 (`python3`, comes with
 the Xcode command line tools).
 

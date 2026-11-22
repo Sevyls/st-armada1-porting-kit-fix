@@ -11,7 +11,11 @@ technical knowledge needed. Plan about 20–30 minutes.
 
 ## What you need
 
-- A Mac with macOS (tested on an Apple Silicon Mac; Intel Macs should work too).
+- A Mac with **Apple Silicon** and **macOS 27 or earlier** (tested on
+  macOS 27.2). **macOS 28 and later are not expected to work**: Apple removes
+  most of Rosetta 2 there, which Wine/Porting Kit need. Intel Macs: not tested.
+- **Rosetta 2** – if it isn't installed yet, macOS asks you to install it the
+  first time Porting Kit starts a Windows game. Click **Install**.
 - **Star Trek: Armada from GOG.com** – your own purchased copy.
 - **Porting Kit** (free): <https://www.portingkit.com>
 - About 1 GB of free disk space.
