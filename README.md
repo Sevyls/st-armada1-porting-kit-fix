@@ -117,7 +117,14 @@ is re-read every few seconds, so changes apply while the game is running.
   (invisible) game window is does not bring it back.
 - When a new sub-menu opens, the click target appears up to 250 ms later.
 - Only the GOG “1.2 RDNA fix” build is supported (exact byte patches).
-- Multiplayer was not tested.
+- **Internet multiplayer can't work.** The *Internet* button connects to the
+  World Opponent Network (WON), whose servers were shut down in 2004, so it
+  hangs at “Trying to connect to a WON server” on every platform. GOG only
+  supports multiplayer over *Local Area Network (TCP/IP)*; that was not
+  tested under Wine/macOS yet.
+- No windowed mode: the game's hidden `-window` switch opens a window, but
+  under Wine on macOS the window layers and mouse input get mixed up (see
+  [CONFIGURATION.md](docs/CONFIGURATION.md#settings-that-did-not-help-for-reference)).
 
 ## Building armfix yourself
 

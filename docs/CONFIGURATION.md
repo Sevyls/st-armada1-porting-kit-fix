@@ -102,5 +102,7 @@ settings tool for this file.
 | dgVoodoo2 (+ DXVK-macOS 1.10.3) | no Direct3D device / crash in dgVoodoo's `CreateSurface` |
 | dxwrapper “Armada fix” (Dd7to9 → D3D9) | starts, menus render worse |
 | Wine virtual desktop | not available with the Mac driver (greyed out in winecfg) |
+| `presentation=windowed` in `dxcfg.ini` | no visible effect |
+| Armada's hidden command-line switch `-window` (Wineskin *Program Flags*) | the game opens in a window, but window layering and mouse input get mixed up; menus are unusable |
 
 Details: [INVESTIGATION.md](INVESTIGATION.md).
