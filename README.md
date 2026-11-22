@@ -50,10 +50,12 @@ Details: [docs/INVESTIGATION.md](docs/INVESTIGATION.md) · tested settings: [doc
 
 ## What the fix consists of
 
-1. **Two small patches to `Armada.exe`** (your own copy, original kept as
+1. **Small patches to `Armada.exe`** (your own copy, original kept as
    `Armada.exe.orig`):
    - accept every display mode from 640×480 up to 2048 px width,
-   - fall back to the first available mode instead of crashing;
+   - fall back to the first available mode instead of crashing,
+   - list only 32-bit 4:3 and 5:4 modes in *Options → Graphics Settings*
+     (otherwise the drop-down runs off the screen and can't scroll);
    - plus `WS_EX_TOPMOST` on the 32 full-screen shell dialog templates.
 2. **One patch to GOG's DirectX wrapper `ddraw.dll`**: the wrapper moves the
    real dialog controls 21000 px off-screen and widens the dialog by that
@@ -76,6 +78,11 @@ No files or code from GOG or Activision are distributed here: the patch
 tables contain only file offsets and the new bytes (written for this fix);
 the original files are identified by their MD5 checksum. The tool patches the
 files of your own installation and refuses to touch any other version.
+
+Everything here is published as source: the patch tool is a plain Python
+script ([`tools/patch_armada.py`](tools/patch_armada.py)); the only binary,
+`bin/Strlkup.dll`, is built from [`armfix/`](armfix) (see *Building armfix
+yourself*).
 
 ## Installation (short version for experienced users)
 
@@ -100,8 +107,22 @@ Undo everything:
 python3 tools/patch_armada.py --restore "/Applications/Star Trek Armada.app"
 ```
 
-The tool checks the MD5 of `Armada.exe` and `ddraw.dll` and aborts without
-changing anything if they are not the expected GOG versions.
+Check without changing anything:
+```sh
+python3 tools/patch_armada.py --check "/Applications/Star Trek Armada.app"
+```
+
+The tool
+- identifies `Armada.exe` and `ddraw.dll` by MD5 and aborts without changing
+  anything if they are not the expected GOG versions; for an unknown
+  `Armada.exe` it reads the file's version info and says what it is (other
+  1.2 build such as the CD version, older game version, not Armada);
+- reports the patch level (original / older version of this fix / current)
+  and **updates an installation patched by an older version of the fix** –
+  just run it again after downloading a newer version;
+- reports the Wine prefix (32/64-bit, Windows version, Porting Kit engine)
+  and notes when it differs from the tested setup (64-bit prefix,
+  Windows XP 64-bit). It only warns; it doesn't refuse.
 
 ## Tuning
 
@@ -118,6 +139,10 @@ is re-read every few seconds, so changes apply while the game is running.
   (invisible) game window is does not bring it back.
 - When a new sub-menu opens, the click target appears up to 250 ms later.
 - Only the GOG “1.2 RDNA fix” build is supported (exact byte patches).
+- Tested with a 64-bit Wine prefix set to Windows XP 64-bit. 32-bit prefixes
+  and other Windows versions should work the same way but are untested.
+- *Display Mode* only offers 32-bit 4:3/5:4 resolutions (16-bit and
+  widescreen modes are hidden from the menu).
 - **Internet multiplayer can't work.** The *Internet* button connects to the
   World Opponent Network (WON), whose servers were shut down in 2004, so it
   hangs at “Trying to connect to a WON server” on every platform. GOG only

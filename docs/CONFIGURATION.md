@@ -68,7 +68,7 @@ Builtin*). Quit the game before editing; Wine rewrites `user.reg` on exit.
 
 | File | State |
 |---|---|
-| `Armada.exe` | **(fix)** patched (display modes + dialog flags), original in `Armada.exe.orig` |
+| `Armada.exe` | **(fix)** patched (display modes, Display Mode menu filter, dialog flags), original in `Armada.exe.orig` |
 | `ddraw.dll` | **(fix)** GOG DirectX 1-7 wrapper, patched (control offset 21000 → 6000), original in `ddraw.dll.orig` |
 | `STRLKUP.DLL` | **(fix)** armfix proxy DLL from this repository |
 | `strlkup0.dll` | the game's original `STRLKUP.DLL`, renamed |

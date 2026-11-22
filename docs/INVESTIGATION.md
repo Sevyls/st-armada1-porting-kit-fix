@@ -213,6 +213,50 @@ only when the overlap actually happened avoids that.
 
 ---
 
+## 5. Display Mode list runs off the screen
+
+The fix for section 1 accepts every mode from 640×480 up to 2048 px width. A
+Mac offers many of them (640×480, 800×600, 840×525, 960×540, 1024×576,
+1024×768, 1152×648, 1152×864, 1280×720, 1280×800, …), each in 16 and 32 bit.
+In *Options → Graphics Settings* the game lists all of them, 16-bit first, in
+a drop-down that was designed for the original 9 entries: it runs off the
+bottom of the screen and can't scroll, so higher resolutions and all 32-bit
+modes were unreachable.
+
+The list is filled at `0x543165`: for every mode in the adapter's list it
+calls the bpp check `0x586d30` and adds `"%dx%dx%d"` with `CB_ADDSTRING`. The
+current mode is selected, and the chosen entry applied, by comparing the
+**text**, not the list index.
+
+**Fix (Armada.exe):** the call at `0x543175` goes to a new check at
+`0x58ab97` (unused bytes left over from the section 1 patch). It lets only
+32-bit modes with a 4:3 or 5:4 shape through (`3·w = 4·h` or `4·w = 5·h`, the
+shapes of the original five modes) and then continues with the original
+check. The game's internal mode list is unchanged, so the startup fallback
+from section 1 still works.
+
+```
+mov  eax, [esp+4]          ; mode {w, h, bpp}
+cmp  byte [eax+8], 32
+jne  reject
+mov  edx, [eax]            ; w
+mov  eax, [eax+4]          ; h
+lea  ecx, [eax+eax*4]      ; 5h
+shl  edx, 2                ; 4w
+cmp  edx, ecx              ; 5:4 ?
+je   ok
+lea  edx, [edx+edx*2]      ; 12w
+shl  eax, 4                ; 16h
+cmp  edx, eax              ; 4:3 ?
+je   ok
+reject: xor al, al
+        ret 4
+ok:     mov ecx, ebx       ; this
+        jmp 0x586d30       ; original bpp check
+```
+
+---
+
 ## Diagnostic helpers used
 
 - Porting Kit wrapper: `Info.plist` → `Debug Mode` = true,
