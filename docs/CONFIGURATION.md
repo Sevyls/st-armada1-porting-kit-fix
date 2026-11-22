@@ -99,6 +99,34 @@ antialiasing=application
 had no visible effect under Wine. `dxcfg.exe` in the game folder is GOG's
 settings tool for this file.
 
+#### Optional: better 3D graphics
+
+Not set by the patch tool. Edit `dxcfg.ini` with TextEdit while the game is
+closed (inside the app: right-click → **Show Package Contents** →
+`Contents/SharedSupport/prefix/drive_c/GOG Games/Star Trek Armada`).
+
+| Setting | Values the wrapper accepts | Recommendation |
+|---|---|---|
+| `anisotropic` | `application`, `enabled`, `disabled` | **`enabled`** – sharper textures on surfaces seen at an angle; tested, no side effects |
+| `antialiasing` | `application`, `msaa_2x`, `msaa_4x`, `msaa_8x`, `disabled` | **leave at `application`** (see below) |
+| `vsync` | `application`, `enabled`, `disabled` | `enabled` can prevent tearing when the camera pans (not tested) |
+
+Anti-aliasing (`msaa_2x`/`msaa_4x`) does smooth the ship edges in missions,
+but it puts thin horizontal and vertical **lines across the in-engine
+cinematics** (e.g. the bridge scenes before missions). The pre-rendered Bink
+videos (like the Armada logo intro) stay clean. The lines are single
+segments of different lengths along the edges of the scene's polygons: with
+multisampling, pixels on a polygon edge are shaded at the pixel centre, which
+can lie just outside the polygon, so the texture is read slightly beyond the
+polygon's part of the texture. Forcing anti-aliasing in the graphics driver
+caused the same lines on Windows PCs back then. It can't be fixed in the
+wrapper's settings (they apply to the whole game and are read only at
+startup), and a fix in the game's rendering would affect every 3D scene.
+
+Together with the highest *Display Mode* (Options → Graphics Settings) and
+the *Graphics Detail* slider at maximum, `anisotropic=enabled` gives the best
+picture without side effects.
+
 ## Settings that did *not* help (for reference)
 
 | Attempt | Result |

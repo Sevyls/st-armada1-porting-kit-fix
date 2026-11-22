@@ -48,5 +48,8 @@ installed versions by checksum.
 
 ## Documentation only
 
+- Recommended graphics setting `anisotropic=enabled` (GOG wrapper); why the
+  wrapper's anti-aliasing is not recommended (lines across the in-engine
+  cinematics).
 - Internet multiplayer can't work (WON servers shut down in 2004); windowed
   mode attempts that did not work.
