@@ -131,6 +131,10 @@ To change the resolution, use the game's **Options** menu.
   again or click the *Star Trek Armada* icon in the Dock.
 - When a new menu opens, it may take a fraction of a second until clicks work.
 - The menus may look a tiny bit darker than usual – that's part of the fix.
+- **Online play via the *Internet* button doesn't work** – not on a Mac and
+  not on Windows. The game's original online service (WON) was shut down in
+  2004. Only *Local Area Network (TCP/IP)* is left, which hasn't been tested
+  on the Mac yet.
 
 ---
 
@@ -144,6 +148,10 @@ modified). Re-download the current installer from GOG and install again
 **“Game folder not found”**
 The game was installed into a different folder than
 `C:\GOG Games\Star Trek Armada`. Reinstall and keep the default folder.
+
+**Multiplayer: “Trying to connect to a WON server” never finishes**
+That's expected: the WON servers have been offline since 2004. Press
+*Cancel*. See “Good to know” above.
 
 **The game still crashes at startup**
 Run the tool again – it tells you what is already patched. Make sure the game
