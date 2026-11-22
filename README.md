@@ -136,6 +136,10 @@ menu dialogs. Default `13`. Values below about 13 make macOS treat the window
 as click-through again; higher values darken the picture slightly. The file
 is re-read every few seconds, so changes apply while the game is running.
 
+Better 3D graphics: set `anisotropic=enabled` in `dxcfg.ini` (GOG wrapper,
+game folder). Avoid the wrapper's anti-aliasing – it draws lines across the
+in-engine cinematics (bridge scenes). Details: [CONFIGURATION.md](docs/CONFIGURATION.md#optional-better-3d-graphics).
+
 ## Known limitations
 
 - While another app is in front, the game keeps running (including sound
